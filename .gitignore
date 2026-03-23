@@ -1,0 +1,19 @@
+# 入力PDF（ライセンス上リポジトリに含めない）
+input/
+
+# 抽出キャッシュ・CSV出力
+output/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# 環境変数（パスワード等）
+.env
+
+# OS
+.DS_Store
+Thumbs.db
