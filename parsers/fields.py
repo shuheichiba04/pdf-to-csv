@@ -54,6 +54,19 @@ def parse_basic(lines: list[str]) -> dict:
 _CSR_LABELS  = {"人材活用", "環境", "企業統治", "社会性", "基本"}
 _FIN_LABELS  = {"成長性", "収益性", "安全性", "規模"}
 
+# ラベル日本語 → 列名用英字キーの変換マップ（英語略称、母音省略）
+_LABEL_KEY = {
+    "人材活用": "hr",
+    "環境":     "env",
+    "企業統治": "gov",
+    "社会性":   "soc",
+    "基本":     "bsc",
+    "成長性":   "grwth",
+    "収益性":   "prft",
+    "安全性":   "sfty",
+    "規模":     "scl",
+}
+
 
 def _parse_rating_block(lines: list[str], header: str) -> dict | None:
     """
@@ -115,7 +128,7 @@ def _parse_rating_block(lines: list[str], header: str) -> dict | None:
     result = {}
     prefix = "csr" if header == "CSR評価" else "fin"
     for i, label in enumerate(label_line):
-        key = label.replace("・", "_").replace("　", "_")
+        key = _LABEL_KEY.get(label, label)
         result[f"{prefix}_{key}_rating"] = rating_line[i] if rating_line and i < len(rating_line) else None
         result[f"{prefix}_{key}_score"]  = score_line[i]  if score_line  and i < len(score_line)  else None
 
