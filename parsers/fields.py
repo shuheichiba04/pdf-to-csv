@@ -148,6 +148,7 @@ def parse_csr_ratings(lines: list[str]) -> dict:
 # 取得対象のキーと出力列名のマッピング
 # 値はタブ・行末・【 のいずれかで打ち切る（右カラム混入を防ぐ）
 _FLAG_FIELDS = {
+    # --- CSR基本 ---
     "経営理念":                          "has_philosophy",
     "活動のマテリアリティ設定":            "has_materiality",
     "ステークホルダー・エンゲージメント":   "stakeholder_engagement",
@@ -157,14 +158,67 @@ _FLAG_FIELDS = {
     "統合報告書":                        "has_integrated_report",
     "ESG情報の開示":                     "esg_disclosure",
     "機関投資家・ESG調査機関等との対話":   "esg_investor_dialog",
+    "SRIインデックス等への組み入れ":       "sri_index_flag",
     "ISO26000":                         "iso26000",
     "汚職・贈収賄防止":                   "anti_corruption_policy",
     "CSR調達の実施":                     "csr_procurement",
+    "調達方針、労働方針、監査方針等の基準": "csr_procr_stndrd",
+    "CSR調達に関する調達先監査・評価":     "csr_procr_evltn",
+    "紛争鉱物の対応":                    "cnflct_mnrl",
     "NPO・NGO連携":                     "npo_ngo",
     "SDGs":                             "sdgs",
+    "BOPビジネスの取り組み":              "bop_biz_effrt",
+    "CSV・BOPビジネスの位置づけ":         "csv_place",
+    "コミュニティ投資の取り組み":          "cmmnty_effrt",
+    "プロボノ支援の取り組み":             "probono_effrt",
+    # --- ガバナンス ---
+    "株主の権利・平等性の確保":           "shrhldr_rght",
+    "株主以外のステークホルダーとの適切な協働": "stkhldr_collb",
+    "適切な情報開示と透明性の確保":        "trnsprncy",
+    "取締役会等の責務":                  "rspnsblty",
+    "株主との対話":                      "shrhldr_dialg",
+    # --- 企業倫理・法令順守 ---
+    "社員の行動規定":                    "cndct_rule",
+    "通報・告発者の権利保護規定":          "accsr_prtct",
+    "公益通報者保護法ガイドライン":        "prtct_guide",
+    # --- 内部統制 ---
     "内部監査部門":                      "internal_audit",
+    "内部統制の評価":                    "intrnl_ctrl_evltn",
+    "CIO":                              "cio",
+    "CFO":                              "cfo",
+    "情報セキュリティポリシー":            "scrty_plty",
+    "ISMS":                             "isms",
+    "プライバシー・ポリシー":             "prvcyplcy",
+    "対応マニュアル":                    "rsk_mnal",
+    "責任者":                           "rsk_mngr",
     "BCM構築":                          "bcm",
     "BCP策定":                          "bcp",
+    "BCP想定":                          "bcp_assmptn",
+    # --- 消費者・品質 ---
+    "クレーム対応":                      "cmplint",
+    # --- 社会貢献 ---
+    "東日本大震災復興支援":               "jpn_erth_spprt",
+    # --- 環境：組織・情報開示 ---
+    "HP上の公開":                        "hp_open",
+    "費用と効果／金額把握":               "cst_effct",
+    "公開の有無":                        "avlblty",
+    "会計ベース":                        "accnt_base",
+    "環境リスクマネジメントの取り組み":    "env_rsk_mngmnt",
+    "事業活動での環境汚染の危険性":        "env_plltn",
+    "将来発生の可能性がある巨額費用の準備": "prpr_hg_expns",
+    "環境影響評価（アセスメント）":        "env_affct_assmnt",
+    "土壌・地下水等の把握状況":           "grndwtr",
+    "水問題の認識":                      "wtr_prblm",
+    "グリーン購入":                      "grn_buy",
+    "環境ラベリング":                    "env_lblng",
+    "環境ビジネスの取り組み":             "env_biz",
+    "容器包装削減の取り組み":             "pck_reduce",
+    "カーボンオフセット商品等の取り組み":  "crbn_offst",
+    "気候変動対応の取り組み":             "climt_effrt",
+    "再生可能エネルギーの導入":           "rnwabl_enrgy",
+    "CO2排出量等削減への中期計画":        "co2_effrt",
+    "生物多様性保全への取り組み":          "bio_dvrsty_effrt",
+    # --- 環境（既存） ---
     "環境会計":                          "env_accounting",
     "EMS構築":                          "ems",
 }
@@ -182,11 +236,43 @@ def parse_flags(lines: list[str]) -> dict:
         val = _first(rf"【{re.escape(key)}】([^\t\n【]+)", text)
         result[col] = val
 
-    # 「方針の文書化・公開」と「方針の文書化」の2種類が混在するため、長いキーを優先
+    # 「方針の文書化・公開」と「方針の文書化】（CSR冒頭）」の2種類が混在するため、長いキーを優先
     result["csr_policy_doc"] = (
         _first(r"【方針の文書化・公開】([^\t\n【]+)", text)
         or _first(r"【方針の文書化】([^\t\n【]+)", text)
     )
+
+    # 法令順守セクション内の【部署】（LwCmplaDept）:
+    # 「法令順守」の直後に現れる【部署】を取得
+    m = re.search(r"法令順守[\s\S]{0,30}?【部署】([^\t\n【]+)", text)
+    result["lw_compla_dept"] = m.group(1).strip() if m else None
+
+    # IRセクション内の【部署】（IRDept）:
+    # 「\nIR\n」または「IR\n【部署】」パターン
+    m = re.search(r"\bIR\b[\s\S]{0,20}?【部署】([^\t\n【]+)", text)
+    result["ir_dept"] = m.group(1).strip() if m else None
+
+    # 内部通報・告発窓口の設置状況（AccstnHelp）:
+    # full_linesでは「社内：\t設置済み」が窓口キー行から数行離れるため、直接取得
+    inner = _first(r"社内：\t([^\t\n]+)", text)
+    outer = _first(r"社外：\t([^\t\n]+)", text)
+    if inner or outer:
+        result["accstn_help"] = f"社内:{inner or '―'} 社外:{outer or '―'}"
+    else:
+        result["accstn_help"] = None
+
+    # CSR関連基準（CSRStndrd）
+    result["csr_stndrd"] = _first(r"【CSR関連基準】([^\t\n【]+)", text)
+
+    # 情報セキュリティ監査（ScrtyAdt）: 「内部：XX\t外部：XX」形式
+    m = re.search(r"【情報セキュリティ監査】内部：([^\t\n]+)\t外部：([^\t\n【]+)", text)
+    if m:
+        result["scrty_adt"] = f"内部:{m.group(1).strip()} 外部:{m.group(2).strip()}"
+    else:
+        result["scrty_adt"] = _first(r"【情報セキュリティ監査】([^\t\n【]+)", text)
+
+    # SRI重複回避: sri_index_flag は parse_sri で詳細取得するため削除
+    result.pop("sri_index_flag", None)
 
     return result
 
@@ -244,13 +330,12 @@ def parse_csr_structure(lines: list[str]) -> dict:
 
 def parse_sri(lines: list[str]) -> dict:
     """
-    【SRIインデックス等への組み入れ】の値をタブ前まで取得する。
-    複数インデックスが「、」区切りで並ぶが、タブで右カラムが混入するため
-    タブ前までをそのまま文字列として保持する（後処理で分割可）。
+    SRIインデックス・エコファンドを取得する。
     """
     text = "\n".join(lines)
     return {
-        "sri_index": _first(r"【SRIインデックス等への組み入れ】([^\t\n【]+)", text),
+        "sri_index":  _first(r"【SRIインデックス等への組み入れ】([^\t\n【]+)", text),
+        "sri_ecofnd": _first(r"【SRI、エコファンド等】([^\t\n【]+)", text),
     }
 
 
@@ -285,6 +370,9 @@ _ENV_METRICS = {
     "SOX":                   "sox_t",
 }
 
+# スコープ3はセクションが独立しているため別途取得
+_SCOPE3_METRIC = "温室効果ガス排出量"  # スコープ3セクション内の同名指標
+
 def parse_env_data(lines: list[str]) -> dict:
     """
     環境負荷量の各指標について直近年度値（タブ区切り最初の数値）を取得する。
@@ -315,6 +403,302 @@ def parse_env_data(lines: list[str]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# スコープ3・ISO取得率・環境コスト・生物多様性
+# ---------------------------------------------------------------------------
+
+def parse_env_tables(lines: list[str]) -> dict:
+    """
+    環境系のテーブル値を取得する。
+    - EnvScp3  : スコープ3 温室効果ガス排出量（直近年度）
+    - ISO14001 : 国内・海外の取得割合
+    - ISO9000S : 国内・海外の取得割合
+    - EnvCost  : 環境保全コスト合計（直近年度 費用額）
+    - BioDvrstyPrjct: 生物多様性保全プロジェクト支出額（直近年度）
+    """
+    text = "\n".join(lines)
+    result = {}
+
+    # --- EnvScp3: 【スコープ3】直後の温室効果ガス排出量行（パターンA流用）---
+    # 「スコープ3」セクション内で「温室効果ガス排出量」を含む行のタブ後最初の数値
+    m = re.search(r"スコープ3[\s\S]{0,80}?温室効果ガス排出量[^\t\n]*\t([\d,]+)", text)
+    result["env_scp3"] = m.group(1) if m else None
+
+    # --- ISO14001: 国内・海外取得割合（パターンA: 「国内\t値」形式）---
+    m = re.search(r"【ISO14001】[\s\S]{0,60}?国内\t([\d.]+)", text)
+    result["iso14001_dom"] = m.group(1) if m else None
+    m = re.search(r"【ISO14001】[\s\S]{0,120}?海外\t([\d.]+)", text)
+    result["iso14001_ovs"] = m.group(1) if m else None
+
+    # --- ISO9000S: 国内・海外取得割合（パターンB: 「国内」次行に値）---
+    for i, line in enumerate(lines):
+        if "【ISO9000S】" not in line:
+            continue
+        dom = ovs = None
+        for j in range(i + 1, min(i + 10, len(lines))):
+            if re.fullmatch(r"国内", lines[j].strip()):
+                # 次行が「値\t...」
+                if j + 1 < len(lines):
+                    m = re.match(r"([\d.]+)", lines[j + 1].strip())
+                    dom = m.group(1) if m else None
+            elif re.fullmatch(r"海外", lines[j].strip()):
+                if j + 1 < len(lines):
+                    m = re.match(r"([\d.]+)", lines[j + 1].strip())
+                    ovs = m.group(1) if m else None
+        result["iso9000s_dom"] = dom
+        result["iso9000s_ovs"] = ovs
+        break
+
+    # --- EnvCost: 環境保全コスト「合計」行の直近年度費用額 ---
+    # 行形式: 「合計\t投資\t費用\t投資\t費用\t右カラム混在」→ タブ4番目が直近費用
+    for line in lines:
+        if not line.startswith("合計") or "環境保全コスト" in line:
+            continue
+        parts = [p.strip() for p in line.split("\t")]
+        # 数値要素だけ抽出（カンマ区切り数値 or ―）
+        nums = [p for p in parts[1:] if re.match(r"^[\d,]+$|^―$", p)]
+        if len(nums) >= 4:
+            result["env_cost"] = nums[3]  # 直近年度費用額（4番目）
+            break
+        elif len(nums) >= 2:
+            result["env_cost"] = nums[-1]
+            break
+    else:
+        result["env_cost"] = None
+
+    # --- BioDvrstyPrjct: 「支出額\t値\t値」の直近年度（パターンA: タブ後最後の数値）---
+    m = re.search(r"支出額\t([\d,]+)\t([\d,]+)", text)
+    result["bio_dvrsty_prjct"] = m.group(2) if m else None
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# 取締役・監査役人数
+# ---------------------------------------------------------------------------
+
+def parse_directors(lines: list[str]) -> dict:
+    """
+    取締役・監査役の各人数を抽出する。
+    行形式（取締役直後の行）:
+      「【特色】...テキスト...\t【人数】N人【代表者数】N人【女性役員】N人」
+      「【社外取締役】N人」
+    監査役:
+      「【人数】N人【社外監査役】N人」
+    """
+    text = "\n".join(lines)
+
+    # 取締役人数:
+    # 【代表者数】と同行にある【人数】が取締役の人数（監査役行は【社外監査役】）
+    m = re.search(r"【人数】(\d+)人【代表者数】", text)
+    result = {"n_drctr": m.group(1) if m else None}
+
+    m = re.search(r"【代表者数】(\d+)人", text)
+    result["n_cap_drctr"] = m.group(1) if m else None
+
+    m = re.search(r"【女性役員】(\d+)人", text)
+    result["n_wm_drctr"] = m.group(1) if m else None
+
+    m = re.search(r"【社外取締役】(\d+)人", text)
+    result["n_out_drctr"] = m.group(1) if m else None
+
+    # 監査役人数: 【社外監査役】と同行にある【人数】
+    m = re.search(r"【人数】(\d+)人【社外監査役】", text)
+    result["n_adtr"] = m.group(1) if m else None
+
+    m = re.search(r"【社外監査役】(\d+)人", text)
+    result["n_out_adtr"] = m.group(1) if m else None
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# 通報件数・法令違反件数
+# ---------------------------------------------------------------------------
+
+def parse_compliance_counts(lines: list[str]) -> dict:
+    """
+    通報・告発件数（直近年度）と国内・海外法令違反件数を取得する。
+
+    通報件数行: 「件数」→ 次行が年度値（別行）or「件数\t値\t値」（同行）
+    国内法令違反: 「公取...排除勧告」等の行→次行「0\t0\t0」の最後の値
+    海外法令違反: 「価格カルテルによる摘発」等→次行以降に1値ずつ
+    """
+    result = {}
+
+    # --- NofAccstn: 通報件数（直近年度） ---
+    for i, line in enumerate(lines):
+        if "【通報・告発】" not in line:
+            continue
+        # 同行にタブ区切り数値があるか（パターンA）
+        m = re.search(r"【通報・告発】[^\t\n]*\t[\d年度\s]+\t([\d]+)", line)
+        if m:
+            result["n_accstn"] = m.group(1)
+            break
+        # 別行パターン: 「件数」行を探して次の数値行の最後を取る
+        for j in range(i + 1, min(i + 8, len(lines))):
+            if lines[j].strip() == "件数":
+                # 件数の次の数値行群から最後の年度値を取る
+                vals = []
+                for k in range(j + 1, min(j + 5, len(lines))):
+                    parts = [p for p in lines[k].split("\t") if re.match(r"^\d+$", p.strip())]
+                    vals.extend(parts)
+                    if not parts:
+                        break
+                result["n_accstn"] = vals[-1] if vals else None
+                break
+        break
+    else:
+        result["n_accstn"] = None
+
+    # --- DmstcLwCase: 国内法令違反 各種件数の最新年度合計 ---
+    # 「公取...排除勧告」「不祥事...操業停止」「コンプライアンス...刑事告発」の最新年度値を合算
+    dmstc_keys = ["公取など関係官庁からの排除勧告", "不祥事などによる操業・営業停止",
+                  "コンプライアンスに関わる事件・事故で刑事告発"]
+    dmstc_total = 0
+    dmstc_found = False
+    for i, line in enumerate(lines):
+        for key in dmstc_keys:
+            if key not in line:
+                continue
+            # パターンA: 同行に「0\t0\t0」
+            m = re.search(r"(\d+)\t(\d+)\t(\d+)", line)
+            if m:
+                dmstc_total += int(m.group(3))
+                dmstc_found = True
+            else:
+                # パターンB: 次行以降に値が1つずつ
+                vals = []
+                for j in range(i + 1, min(i + 5, len(lines))):
+                    s = lines[j].strip()
+                    if re.fullmatch(r"\d+", s):
+                        vals.append(int(s))
+                    elif s and not re.match(r"\d", s):
+                        break
+                if vals:
+                    dmstc_total += vals[-1]
+                    dmstc_found = True
+    result["dmstc_lw_case"] = str(dmstc_total) if dmstc_found else None
+
+    # --- OvrseaLwVioltn: 海外法令違反 各種件数の最新年度合計 ---
+    ovrsea_keys = ["価格カルテルによる摘発", "贈賄による摘発", "その他の摘発"]
+    ovrsea_total = 0
+    ovrsea_found = False
+    for i, line in enumerate(lines):
+        for key in ovrsea_keys:
+            if key not in line:
+                continue
+            m = re.search(r"(\d+)\t(\d+)\t(\d+)", line)
+            if m:
+                ovrsea_total += int(m.group(3))
+                ovrsea_found = True
+            else:
+                vals = []
+                for j in range(i + 1, min(i + 5, len(lines))):
+                    s = lines[j].strip()
+                    if re.fullmatch(r"\d+", s):
+                        vals.append(int(s))
+                    elif s and not re.match(r"\d", s):
+                        break
+                if vals:
+                    ovrsea_total += vals[-1]
+                    ovrsea_found = True
+    result["ovrsea_lw_violtn"] = str(ovrsea_total) if ovrsea_found else None
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# 社会貢献・政治献金支出額
+# ---------------------------------------------------------------------------
+
+def parse_social_amounts(lines: list[str]) -> dict:
+    """
+    社会貢献活動支出額・政治献金支出額の直近年度総額を取得する。
+    行形式: 「総額\t値1\t値2\t値3\t右カラム混在」→ 数値要素の最後が直近年度
+    """
+    result = {}
+
+    for section, col in [("社会貢献活動支出額", "scl_cntrbtn_amnt"),
+                          ("政治献金・ロビー活動等支出額", "pltcl_cntrbtn_amnt")]:
+        found = False
+        for i, line in enumerate(lines):
+            if section not in line:
+                continue
+            # 年度ヘッダ行（「14年度\t15年度\t16年度」等）から左カラムの列数を取得
+            # タブ区切りで先頭から連続する年度トークン数のみ数える（右カラム混入を除外）
+            n_years = None
+            for j in range(i + 1, min(i + 4, len(lines))):
+                parts = lines[j].split("\t")
+                count = 0
+                for p in parts:
+                    if re.search(r"\d+年度", p):
+                        count += 1
+                    elif count > 0:
+                        break  # 年度でないトークンが来たら終了
+                if count > 0:
+                    n_years = count
+                    break
+            # 「総額」行を最大6行以内で探す
+            for j in range(i + 1, min(i + 7, len(lines))):
+                if not lines[j].startswith("総額"):
+                    continue
+                parts = lines[j].split("\t")
+                nums = [p.strip() for p in parts if re.match(r"^[\d,]+\.?\d*$", p.strip())]
+                # 年度数が判明していれば先頭n_years個だけ取る（右カラム混入を排除）
+                if n_years:
+                    nums = nums[:n_years]
+                if nums:
+                    result[col] = nums[-1]  # 最後が直近年度
+                    found = True
+                break
+            break
+        if not found:
+            result[col] = None
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# グリーン購入比率・CO2削減等テキスト
+# ---------------------------------------------------------------------------
+
+def parse_env_efforts(lines: list[str]) -> dict:
+    """
+    事務用品等グリーン購入比率（直近年度）と
+    CO2削減・リサイクル・廃棄物削減の取り組みテキストを取得する。
+    """
+    text = "\n".join(lines)
+    result = {}
+
+    # SpplyGrnBuy: 「比率（%）\t値\t値」の直近年度（タブ後最後の数値）
+    # 行が右カラムに混在するため text から正規表現で取る
+    m = re.search(r"比率（%）\t([\d.]+)\t([\d.]+)", text)
+    result["spply_grn_buy"] = m.group(2) if m else None
+
+    # CO2Rduce / EnrgyRduce / WasteRduce:
+    # 右カラム混在で値がタブ後にくっつく。テキスト全体から【キー】後のテキストを取る
+    for key, col in [("CO2排出量等削減", "co2_rduce"),
+                     ("リサイクル",       "enrgy_rduce"),
+                     ("廃棄物削減",       "waste_rduce")]:
+        # タブ混在で右カラムのテキストが混入するため、タブ前までを取得
+        # キーが行後半にある場合も正規表現で拾う
+        m = re.search(rf"【{re.escape(key)}】([^\t\n【]+)", text)
+        if m:
+            val = m.group(1).strip()
+            # 続きが次行に切れているケース: 行末が「向」「達」等の途中で切れていれば次行を結合
+            start = m.end()
+            remaining = text[start:]
+            extra = re.match(r"\n([^\t\n【＼①②③④⑤]+)", remaining)
+            if extra and not re.match(r"^\s*(【|[A-Z]|[0-9]|NOX|SOX|水資源|温室|特定)", extra.group(1)):
+                val = val + extra.group(1).strip()
+            result[col] = val[:200]
+        else:
+            result[col] = None
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # まとめて実行
 # ---------------------------------------------------------------------------
 
@@ -333,4 +717,9 @@ def parse_all(full_lines: str) -> dict:
     result.update(parse_sri(lines))
     result.update(parse_shareholders(lines))
     result.update(parse_env_data(lines))
+    result.update(parse_env_tables(lines))
+    result.update(parse_directors(lines))
+    result.update(parse_compliance_counts(lines))
+    result.update(parse_social_amounts(lines))
+    result.update(parse_env_efforts(lines))
     return result
