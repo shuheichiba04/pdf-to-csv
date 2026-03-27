@@ -12,9 +12,11 @@ pdf-to-csv/
 │   ├── pdf_reader.py        # PyMuPDF によるテキスト抽出（座標ベース行再構築）
 │   └── quality_check.py     # テキスト品質チェック（文字化け検出）
 ├── parsers/
-│   └── fields.py            # 正規表現によるフィールド抽出
+│   ├── field_parser.py      # 正規表現によるフィールド抽出（parse_all）
+│   ├── field_schema.py      # フィールドごとの期待型定義（FIELD_TYPES）
+│   └── column_map.py        # CSV出力列順・日本語ラベル定義（COLUMNS）
 ├── tests/
-│   └── test_parser.py       # キャッシュを使ったフィールド精度測定
+│   └── test_parser.py       # キャッシュを使ったフィールド精度・型チェック
 ├── main.py                  # エントリーポイント
 ├── requirements.txt
 └── .env                     # パスワード・パス設定（要作成）
@@ -52,21 +54,27 @@ python -X utf8 main.py --file input/sample.pdf
 
 ```bash
 python -X utf8 tests/test_parser.py
+python -X utf8 tests/test_parser.py --type-only
 python -X utf8 tests/test_parser.py --file "2019年版 （4045） 東亞合成（株）"
 ```
 
-## 抽出フィールド
+## 抽出フィールドと出力列名
 
-| カテゴリ   | フィールド例                                               |
-| ---------- | ---------------------------------------------------------- |
-| 基本情報   | tel, established, listed, fiscal_end, address, description |
-| CSR評価    | csr_hr_rating/score, csr_env_rating/score, csr_gov_rating/score, csr_soc_rating/score, csr_bsc_rating/score |
-| 財務評価   | fin_grwth_rating/score, fin_prft_rating/score, fin_sfty_rating/score, fin_scl_rating/score |
-| フラグ     | has_philosophy, has_materiality, esg_disclosure, sdgs, ... |
-| CSR体制    | csr_dept_tenure, csr_dept_name, csr_officer_name, ...      |
-| 株主情報   | shares_total, shareholders_n, major_share_pct, float_pct   |
-| 環境負荷量 | energy_gj, water_m3, ghg_tco2, waste_t, ...                |
-| SRI        | sri_index                                                  |
+CSV は1行目に日本語ラベル、2行目に英語変数名、3行目以降にデータを出力する。
+列定義は `parsers/column_map.py` の `COLUMNS` で管理している。
+
+| カテゴリ       | 英語変数名（例）                                                   |
+| -------------- | ------------------------------------------------------------------ |
+| 基本情報       | TEL, EstblshYr, LstngYr, AccntPrd, cmpAdrs, Chrctrstc             |
+| CSR評価        | CSRHrRtng/Scr, CSREnvRtng/Scr, CSRGovRtng/Scr, CSRSocRtng/Scr, CSRBscRtng/Scr |
+| 財務評価       | FinGrwthRtng/Scr, FinPrftRtng/Scr, FinSftyRtng/Scr, FinSclRtng/Scr |
+| CSR基本・体制  | Prncpls, Mtralty, CSRDept, CSROffcr, ESGInfrmtn, SRIIndx, ...     |
+| ガバナンス     | ShrhldrRght, Trnsprncy, Rspnsblty, ShrhldrDialg, ...              |
+| 取締役・株主   | NofDrctr, NofAdtr, NofShare, NofShrhldr, SpcfStckRatio, ...       |
+| 法令・内部統制 | LwCmplaDept, AccstnHelp, NofAccstn, DmstcLwCase, ISMS, BCP, ...   |
+| 環境負荷量     | EnrgyGJ, WtrM3, GhgTco2, WasteT, EnvScp3, ...                     |
+| 環境施策       | ISO14001Dom/Ovs, GrnBuy, ClimtEffrt, RnwablEnrgy, CO2Effrt, ...   |
+| 社会貢献       | SclCntrbtnAmnt, PltclCntrbtnAmnt, JpnErthqkSpprt, ...             |
 
 ## 技術メモ
 

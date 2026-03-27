@@ -36,13 +36,13 @@ def parse_basic(lines: list[str]) -> dict:
     """
     text = "\n".join(lines)
     return {
-        "tel":        _first(r"【TEL】([\d\-－–()（）]+)", text),
-        "established": _first(r"【設立】(\d[\d.]+)", text),
-        "listed":     _first(r"【上場】([\d.]+|―|-)", text),
-        "fiscal_end": _first(r"【決算期】(\S+)", text),
+        "TEL":        _first(r"【TEL】([\d\-－–()（）]+)", text),
+        "EstblshYr":  _first(r"【設立】(\d[\d.]+)", text),
+        "LstngYr":    _first(r"【上場】([\d.]+|―|-)", text),
+        "AccntPrd":   _first(r"【決算期】(\S+)", text),
         # 長いキー名を先に試す（「本社」が「東京本社」より先にマッチするのを防ぐ）
-        "address":    _first(r"【(?:東京本社|大阪本社|本店|本社)】([^\t\n]+)", text),
-        "description": _first(r"【特色】([^\t\n]+)", text),
+        "cmpAdrs":    _first(r"【(?:東京本社|大阪本社|本店|本社)】([^\t\n]+)", text),
+        "Chrctrstc":  _first(r"【特色】([^\t\n]+)", text),
     }
 
 
@@ -54,17 +54,17 @@ def parse_basic(lines: list[str]) -> dict:
 _CSR_LABELS  = {"人材活用", "環境", "企業統治", "社会性", "基本"}
 _FIN_LABELS  = {"成長性", "収益性", "安全性", "規模"}
 
-# ラベル日本語 → 列名用英字キーの変換マップ（英語略称、母音省略）
+# ラベル日本語 → 英語変数名プレフィックスの変換マップ
 _LABEL_KEY = {
-    "人材活用": "hr",
-    "環境":     "env",
-    "企業統治": "gov",
-    "社会性":   "soc",
-    "基本":     "bsc",
-    "成長性":   "grwth",
-    "収益性":   "prft",
-    "安全性":   "sfty",
-    "規模":     "scl",
+    "人材活用": "Hr",
+    "環境":     "Env",
+    "企業統治": "Gov",
+    "社会性":   "Soc",
+    "基本":     "Bsc",
+    "成長性":   "Grwth",
+    "収益性":   "Prft",
+    "安全性":   "Sfty",
+    "規模":     "Scl",
 }
 
 
@@ -126,11 +126,11 @@ def _parse_rating_block(lines: list[str], header: str) -> dict | None:
             break
 
     result = {}
-    prefix = "csr" if header == "CSR評価" else "fin"
+    prefix = "CSR" if header == "CSR評価" else "Fin"
     for i, label in enumerate(label_line):
         key = _LABEL_KEY.get(label, label)
-        result[f"{prefix}_{key}_rating"] = rating_line[i] if rating_line and i < len(rating_line) else None
-        result[f"{prefix}_{key}_score"]  = score_line[i]  if score_line  and i < len(score_line)  else None
+        result[f"{prefix}{key}Rtng"] = rating_line[i] if rating_line and i < len(rating_line) else None
+        result[f"{prefix}{key}Scr"]  = score_line[i]  if score_line  and i < len(score_line)  else None
 
     return result
 
@@ -149,78 +149,78 @@ def parse_csr_ratings(lines: list[str]) -> dict:
 # 値はタブ・行末・【 のいずれかで打ち切る（右カラム混入を防ぐ）
 _FLAG_FIELDS = {
     # --- CSR基本 ---
-    "経営理念":                          "has_philosophy",
-    "活動のマテリアリティ設定":            "has_materiality",
-    "ステークホルダー・エンゲージメント":   "stakeholder_engagement",
-    "活動の報告":                        "activity_report",
-    "第三者の関与":                      "has_third_party",
-    "英文の報告書":                      "has_eng_report",
-    "統合報告書":                        "has_integrated_report",
-    "ESG情報の開示":                     "esg_disclosure",
-    "機関投資家・ESG調査機関等との対話":   "esg_investor_dialog",
-    "SRIインデックス等への組み入れ":       "sri_index_flag",
-    "ISO26000":                         "iso26000",
-    "汚職・贈収賄防止":                   "anti_corruption_policy",
-    "CSR調達の実施":                     "csr_procurement",
-    "調達方針、労働方針、監査方針等の基準": "csr_procr_stndrd",
-    "CSR調達に関する調達先監査・評価":     "csr_procr_evltn",
-    "紛争鉱物の対応":                    "cnflct_mnrl",
-    "NPO・NGO連携":                     "npo_ngo",
-    "SDGs":                             "sdgs",
-    "BOPビジネスの取り組み":              "bop_biz_effrt",
-    "CSV・BOPビジネスの位置づけ":         "csv_place",
-    "コミュニティ投資の取り組み":          "cmmnty_effrt",
-    "プロボノ支援の取り組み":             "probono_effrt",
+    "経営理念":                          "Prncpls",
+    "活動のマテリアリティ設定":            "Mtralty",
+    "ステークホルダー・エンゲージメント":   "StkhldrEnggmnt",
+    "活動の報告":                        "RprtActvty",
+    "第三者の関与":                      "Invlvmnt",
+    "英文の報告書":                      "EngRprt",
+    "統合報告書":                        "IntgrtRprt",
+    "ESG情報の開示":                     "ESGInfrmtn",
+    "機関投資家・ESG調査機関等との対話":   "ESGDialg",
+    "SRIインデックス等への組み入れ":       "_sri_index_flag",  # parse_sri で上書き
+    "ISO26000":                         "ISO26000",
+    "汚職・贈収賄防止":                   "AntBrbry",
+    "CSR調達の実施":                     "CSRPrcrmnt",
+    "調達方針、労働方針、監査方針等の基準": "PrcrStndrd",
+    "CSR調達に関する調達先監査・評価":     "CSRPrcrEvltn",
+    "紛争鉱物の対応":                    "CnflctMnrl",
+    "NPO・NGO連携":                     "NPOCollb",
+    "SDGs":                             "SDGs",
+    "BOPビジネスの取り組み":              "BOPBizEffrt",
+    "CSV・BOPビジネスの位置づけ":         "CSVPlace",
+    "コミュニティ投資の取り組み":          "CmmntyEffrt",
+    "プロボノ支援の取り組み":             "ProbonoEffrt",
     # --- ガバナンス ---
-    "株主の権利・平等性の確保":           "shrhldr_rght",
-    "株主以外のステークホルダーとの適切な協働": "stkhldr_collb",
-    "適切な情報開示と透明性の確保":        "trnsprncy",
-    "取締役会等の責務":                  "rspnsblty",
-    "株主との対話":                      "shrhldr_dialg",
+    "株主の権利・平等性の確保":           "ShrhldrRght",
+    "株主以外のステークホルダーとの適切な協働": "StkhldrCollb",
+    "適切な情報開示と透明性の確保":        "Trnsprncy",
+    "取締役会等の責務":                  "Rspnsblty",
+    "株主との対話":                      "ShrhldrDialg",
     # --- 企業倫理・法令順守 ---
-    "社員の行動規定":                    "cndct_rule",
-    "通報・告発者の権利保護規定":          "accsr_prtct",
-    "公益通報者保護法ガイドライン":        "prtct_guide",
+    "社員の行動規定":                    "CndctRule",
+    "通報・告発者の権利保護規定":          "AccsrPrtct",
+    "公益通報者保護法ガイドライン":        "PrtctGuide",
     # --- 内部統制 ---
-    "内部監査部門":                      "internal_audit",
-    "内部統制の評価":                    "intrnl_ctrl_evltn",
-    "CIO":                              "cio",
-    "CFO":                              "cfo",
-    "情報セキュリティポリシー":            "scrty_plty",
-    "ISMS":                             "isms",
-    "プライバシー・ポリシー":             "prvcyplcy",
-    "対応マニュアル":                    "rsk_mnal",
-    "責任者":                           "rsk_mngr",
-    "BCM構築":                          "bcm",
-    "BCP策定":                          "bcp",
-    "BCP想定":                          "bcp_assmptn",
+    "内部監査部門":                      "IntrnlAdtDept",
+    "内部統制の評価":                    "IntrnlCtrlEvltn",
+    "CIO":                              "CIO",
+    "CFO":                              "CFO",
+    "情報セキュリティポリシー":            "ScrtyPlty",
+    "ISMS":                             "ISMS",
+    "プライバシー・ポリシー":             "PrvcyPlcy",
+    "対応マニュアル":                    "RskMnal",
+    "責任者":                           "RskMngr",
+    "BCM構築":                          "BCMEstblsh",
+    "BCP策定":                          "BCPSet",
+    "BCP想定":                          "BCPAssmptn",
     # --- 消費者・品質 ---
-    "クレーム対応":                      "cmplint",
+    "クレーム対応":                      "Cmplint",
     # --- 社会貢献 ---
-    "東日本大震災復興支援":               "jpn_erth_spprt",
+    "東日本大震災復興支援":               "JpnErthqkSpprt",
     # --- 環境：組織・情報開示 ---
-    "HP上の公開":                        "hp_open",
-    "費用と効果／金額把握":               "cst_effct",
-    "公開の有無":                        "avlblty",
-    "会計ベース":                        "accnt_base",
-    "環境リスクマネジメントの取り組み":    "env_rsk_mngmnt",
-    "事業活動での環境汚染の危険性":        "env_plltn",
-    "将来発生の可能性がある巨額費用の準備": "prpr_hg_expns",
-    "環境影響評価（アセスメント）":        "env_affct_assmnt",
-    "土壌・地下水等の把握状況":           "grndwtr",
-    "水問題の認識":                      "wtr_prblm",
-    "グリーン購入":                      "grn_buy",
-    "環境ラベリング":                    "env_lblng",
-    "環境ビジネスの取り組み":             "env_biz",
-    "容器包装削減の取り組み":             "pck_reduce",
-    "カーボンオフセット商品等の取り組み":  "crbn_offst",
-    "気候変動対応の取り組み":             "climt_effrt",
-    "再生可能エネルギーの導入":           "rnwabl_enrgy",
-    "CO2排出量等削減への中期計画":        "co2_effrt",
-    "生物多様性保全への取り組み":          "bio_dvrsty_effrt",
+    "HP上の公開":                        "HPOpen",
+    "費用と効果／金額把握":               "CstEffct",
+    "公開の有無":                        "Avlblty",
+    "会計ベース":                        "AccntBase",
+    "環境リスクマネジメントの取り組み":    "EnvRskMngmnt",
+    "事業活動での環境汚染の危険性":        "EnvPlltn",
+    "将来発生の可能性がある巨額費用の準備": "PrprHgExpns",
+    "環境影響評価（アセスメント）":        "EnvAffctAssmnt",
+    "土壌・地下水等の把握状況":           "Grndwtr",
+    "水問題の認識":                      "WtrPrblm",
+    "グリーン購入":                      "GrnBuy",
+    "環境ラベリング":                    "EnvLblng",
+    "環境ビジネスの取り組み":             "EnvBiz",
+    "容器包装削減の取り組み":             "PckRduce",
+    "カーボンオフセット商品等の取り組み":  "CrbnOffst",
+    "気候変動対応の取り組み":             "ClimtEffrt",
+    "再生可能エネルギーの導入":           "RnwablEnrgy",
+    "CO2排出量等削減への中期計画":        "CO2Effrt",
+    "生物多様性保全への取り組み":          "BioDvrstyEffrt",
     # --- 環境（既存） ---
-    "環境会計":                          "env_accounting",
-    "EMS構築":                          "ems",
+    "環境会計":                          "EnvAccnt",
+    "EMS構築":                          "EMSEstblsh",
 }
 
 def parse_flags(lines: list[str]) -> dict:
@@ -237,42 +237,37 @@ def parse_flags(lines: list[str]) -> dict:
         result[col] = val
 
     # 「方針の文書化・公開」と「方針の文書化】（CSR冒頭）」の2種類が混在するため、長いキーを優先
-    result["csr_policy_doc"] = (
+    result["CSRDcmntPlcy"] = (
         _first(r"【方針の文書化・公開】([^\t\n【]+)", text)
         or _first(r"【方針の文書化】([^\t\n【]+)", text)
     )
+    result["MrlDcmnt"] = result["CSRDcmntPlcy"]  # 同値を企業倫理列にも設定
 
     # 法令順守セクション内の【部署】（LwCmplaDept）:
-    # 「法令順守」の直後に現れる【部署】を取得
     m = re.search(r"法令順守[\s\S]{0,30}?【部署】([^\t\n【]+)", text)
-    result["lw_compla_dept"] = m.group(1).strip() if m else None
+    result["LwCmplaDept"] = m.group(1).strip() if m else None
 
     # IRセクション内の【部署】（IRDept）:
-    # 「\nIR\n」または「IR\n【部署】」パターン
     m = re.search(r"\bIR\b[\s\S]{0,20}?【部署】([^\t\n【]+)", text)
-    result["ir_dept"] = m.group(1).strip() if m else None
+    result["IRDept"] = m.group(1).strip() if m else None
 
-    # 内部通報・告発窓口の設置状況（AccstnHelp）:
-    # full_linesでは「社内：\t設置済み」が窓口キー行から数行離れるため、直接取得
+    # 内部通報・告発窓口（AccstnHelp）:
     inner = _first(r"社内：\t([^\t\n]+)", text)
     outer = _first(r"社外：\t([^\t\n]+)", text)
-    if inner or outer:
-        result["accstn_help"] = f"社内:{inner or '―'} 社外:{outer or '―'}"
-    else:
-        result["accstn_help"] = None
+    result["AccstnHelp"] = f"社内:{inner or '―'} 社外:{outer or '―'}" if (inner or outer) else None
 
     # CSR関連基準（CSRStndrd）
-    result["csr_stndrd"] = _first(r"【CSR関連基準】([^\t\n【]+)", text)
+    result["CSRStndrd"] = _first(r"【CSR関連基準】([^\t\n【]+)", text)
 
     # 情報セキュリティ監査（ScrtyAdt）: 「内部：XX\t外部：XX」形式
     m = re.search(r"【情報セキュリティ監査】内部：([^\t\n]+)\t外部：([^\t\n【]+)", text)
     if m:
-        result["scrty_adt"] = f"内部:{m.group(1).strip()} 外部:{m.group(2).strip()}"
+        result["ScrtyAdt"] = f"内部:{m.group(1).strip()} 外部:{m.group(2).strip()}"
     else:
-        result["scrty_adt"] = _first(r"【情報セキュリティ監査】([^\t\n【]+)", text)
+        result["ScrtyAdt"] = _first(r"【情報セキュリティ監査】([^\t\n【]+)", text)
 
-    # SRI重複回避: sri_index_flag は parse_sri で詳細取得するため削除
-    result.pop("sri_index_flag", None)
+    # SRI重複回避: _sri_index_flag は parse_sri で上書きするため削除
+    result.pop("_sri_index_flag", None)
 
     return result
 
@@ -316,11 +311,11 @@ def parse_csr_structure(lines: list[str]) -> dict:
     csr_ratio = _first(r"【同・CSR業務比率】([^\t\n【]+)", text)
 
     return {
-        "csr_dept_tenure": csr_dept_tenure,
-        "csr_dept_name":   csr_dept_name,
-        "csr_officer_tenure": csr_officer_tenure,
-        "csr_officer_name":   csr_officer_name,
-        "csr_ratio":       csr_ratio,
+        "CSRDeptTnr":  csr_dept_tenure,
+        "CSRDept":     csr_dept_name,
+        "CSROffcrTnr": csr_officer_tenure,
+        "CSROffcr":    csr_officer_name,
+        "CSRRetio":    csr_ratio,
     }
 
 
@@ -334,8 +329,8 @@ def parse_sri(lines: list[str]) -> dict:
     """
     text = "\n".join(lines)
     return {
-        "sri_index":  _first(r"【SRIインデックス等への組み入れ】([^\t\n【]+)", text),
-        "sri_ecofnd": _first(r"【SRI、エコファンド等】([^\t\n【]+)", text),
+        "SRIIndx":   _first(r"【SRIインデックス等への組み入れ】([^\t\n【]+)", text),
+        "SRIEcofnd": _first(r"【SRI、エコファンド等】([^\t\n【]+)", text),
     }
 
 
@@ -346,10 +341,10 @@ def parse_sri(lines: list[str]) -> dict:
 def parse_shareholders(lines: list[str]) -> dict:
     text = "\n".join(lines)
     return {
-        "shares_total":    _first(r"【株式数】([\d,]+)千株", text),
-        "shareholders_n":  _first(r"【株主総数】([\d,]+)人", text),
-        "major_share_pct": _first(r"【特定株比率】([\d.]+)%", text),
-        "float_pct":       _first(r"【浮動株比率】([\d.]+)%", text),
+        "NofShare":      _first(r"【株式数】([\d,]+)千株", text),
+        "NofShrhldr":    _first(r"【株主総数】([\d,]+)人", text),
+        "SpcfStckRatio": _first(r"【特定株比率】([\d.]+)%", text),
+        "FlotStckRatio": _first(r"【浮動株比率】([\d.]+)%", text),
     }
 
 
@@ -360,14 +355,14 @@ def parse_shareholders(lines: list[str]) -> dict:
 # 直近年度（最後の列）を取得する。欠損は None。
 
 _ENV_METRICS = {
-    "総エネルギー投入量":      "energy_gj",
-    "水資源投入量":            "water_m3",
-    "温室効果ガス排出量":      "ghg_tco2",
-    "特定化学物質排出量":      "chemical_t",
-    "廃棄物等総排出量":        "waste_t",
-    "総排水量":               "wastewater_m3",
-    "NOX":                   "nox_t",
-    "SOX":                   "sox_t",
+    "総エネルギー投入量":      "EnrgyGJ",
+    "水資源投入量":            "WtrM3",
+    "温室効果ガス排出量":      "GhgTco2",
+    "特定化学物質排出量":      "ChemT",
+    "廃棄物等総排出量":        "WasteT",
+    "総排水量":               "WstwtrM3",
+    "NOX":                   "NoxT",
+    "SOX":                   "SoxT",
 }
 
 # スコープ3はセクションが独立しているため別途取得
@@ -419,15 +414,14 @@ def parse_env_tables(lines: list[str]) -> dict:
     result = {}
 
     # --- EnvScp3: 【スコープ3】直後の温室効果ガス排出量行（パターンA流用）---
-    # 「スコープ3」セクション内で「温室効果ガス排出量」を含む行のタブ後最初の数値
     m = re.search(r"スコープ3[\s\S]{0,80}?温室効果ガス排出量[^\t\n]*\t([\d,]+)", text)
-    result["env_scp3"] = m.group(1) if m else None
+    result["EnvScp3"] = m.group(1) if m else None
 
     # --- ISO14001: 国内・海外取得割合（パターンA: 「国内\t値」形式）---
     m = re.search(r"【ISO14001】[\s\S]{0,60}?国内\t([\d.]+)", text)
-    result["iso14001_dom"] = m.group(1) if m else None
+    result["ISO14001Dom"] = m.group(1) if m else None
     m = re.search(r"【ISO14001】[\s\S]{0,120}?海外\t([\d.]+)", text)
-    result["iso14001_ovs"] = m.group(1) if m else None
+    result["ISO14001Ovs"] = m.group(1) if m else None
 
     # --- ISO9000S: 国内・海外取得割合（パターンB: 「国内」次行に値）---
     for i, line in enumerate(lines):
@@ -436,7 +430,6 @@ def parse_env_tables(lines: list[str]) -> dict:
         dom = ovs = None
         for j in range(i + 1, min(i + 10, len(lines))):
             if re.fullmatch(r"国内", lines[j].strip()):
-                # 次行が「値\t...」
                 if j + 1 < len(lines):
                     m = re.match(r"([\d.]+)", lines[j + 1].strip())
                     dom = m.group(1) if m else None
@@ -444,8 +437,8 @@ def parse_env_tables(lines: list[str]) -> dict:
                 if j + 1 < len(lines):
                     m = re.match(r"([\d.]+)", lines[j + 1].strip())
                     ovs = m.group(1) if m else None
-        result["iso9000s_dom"] = dom
-        result["iso9000s_ovs"] = ovs
+        result["ISO9000SDom"] = dom
+        result["ISO9000SOvs"] = ovs
         break
 
     # --- EnvCost: 環境保全コスト「合計」行の直近年度費用額 ---
@@ -457,17 +450,17 @@ def parse_env_tables(lines: list[str]) -> dict:
         # 数値要素だけ抽出（カンマ区切り数値 or ―）
         nums = [p for p in parts[1:] if re.match(r"^[\d,]+$|^―$", p)]
         if len(nums) >= 4:
-            result["env_cost"] = nums[3]  # 直近年度費用額（4番目）
+            result["EnvCost"] = nums[3]  # 直近年度費用額（4番目）
             break
         elif len(nums) >= 2:
-            result["env_cost"] = nums[-1]
+            result["EnvCost"] = nums[-1]
             break
     else:
-        result["env_cost"] = None
+        result["EnvCost"] = None
 
     # --- BioDvrstyPrjct: 「支出額\t値\t値」の直近年度（パターンA: タブ後最後の数値）---
     m = re.search(r"支出額\t([\d,]+)\t([\d,]+)", text)
-    result["bio_dvrsty_prjct"] = m.group(2) if m else None
+    result["BioDvrstyPrjct"] = m.group(2) if m else None
 
     return result
 
@@ -490,23 +483,23 @@ def parse_directors(lines: list[str]) -> dict:
     # 取締役人数:
     # 【代表者数】と同行にある【人数】が取締役の人数（監査役行は【社外監査役】）
     m = re.search(r"【人数】(\d+)人【代表者数】", text)
-    result = {"n_drctr": m.group(1) if m else None}
+    result = {"NofDrctr": m.group(1) if m else None}
 
     m = re.search(r"【代表者数】(\d+)人", text)
-    result["n_cap_drctr"] = m.group(1) if m else None
+    result["NofCapDrctr"] = m.group(1) if m else None
 
     m = re.search(r"【女性役員】(\d+)人", text)
-    result["n_wm_drctr"] = m.group(1) if m else None
+    result["NofWmDrctr"] = m.group(1) if m else None
 
     m = re.search(r"【社外取締役】(\d+)人", text)
-    result["n_out_drctr"] = m.group(1) if m else None
+    result["NofOutDrctr"] = m.group(1) if m else None
 
     # 監査役人数: 【社外監査役】と同行にある【人数】
     m = re.search(r"【人数】(\d+)人【社外監査役】", text)
-    result["n_adtr"] = m.group(1) if m else None
+    result["NofAdtr"] = m.group(1) if m else None
 
     m = re.search(r"【社外監査役】(\d+)人", text)
-    result["n_out_adtr"] = m.group(1) if m else None
+    result["NofOutAdtr"] = m.group(1) if m else None
 
     return result
 
@@ -532,7 +525,7 @@ def parse_compliance_counts(lines: list[str]) -> dict:
         # 同行にタブ区切り数値があるか（パターンA）
         m = re.search(r"【通報・告発】[^\t\n]*\t[\d年度\s]+\t([\d]+)", line)
         if m:
-            result["n_accstn"] = m.group(1)
+            result["NofAccstn"] = m.group(1)
             break
         # 別行パターン: 「件数」行を探して次の数値行の最後を取る
         for j in range(i + 1, min(i + 8, len(lines))):
@@ -544,11 +537,11 @@ def parse_compliance_counts(lines: list[str]) -> dict:
                     vals.extend(parts)
                     if not parts:
                         break
-                result["n_accstn"] = vals[-1] if vals else None
+                result["NofAccstn"] = vals[-1] if vals else None
                 break
         break
     else:
-        result["n_accstn"] = None
+        result["NofAccstn"] = None
 
     # --- DmstcLwCase: 国内法令違反 各種件数の最新年度合計 ---
     # 「公取...排除勧告」「不祥事...操業停止」「コンプライアンス...刑事告発」の最新年度値を合算
@@ -577,7 +570,7 @@ def parse_compliance_counts(lines: list[str]) -> dict:
                 if vals:
                     dmstc_total += vals[-1]
                     dmstc_found = True
-    result["dmstc_lw_case"] = str(dmstc_total) if dmstc_found else None
+    result["DmstcLwCase"] = str(dmstc_total) if dmstc_found else None
 
     # --- OvrseaLwVioltn: 海外法令違反 各種件数の最新年度合計 ---
     ovrsea_keys = ["価格カルテルによる摘発", "贈賄による摘発", "その他の摘発"]
@@ -602,7 +595,7 @@ def parse_compliance_counts(lines: list[str]) -> dict:
                 if vals:
                     ovrsea_total += vals[-1]
                     ovrsea_found = True
-    result["ovrsea_lw_violtn"] = str(ovrsea_total) if ovrsea_found else None
+    result["OvrseaLwVioltn"] = str(ovrsea_total) if ovrsea_found else None
 
     return result
 
@@ -618,8 +611,8 @@ def parse_social_amounts(lines: list[str]) -> dict:
     """
     result = {}
 
-    for section, col in [("社会貢献活動支出額", "scl_cntrbtn_amnt"),
-                          ("政治献金・ロビー活動等支出額", "pltcl_cntrbtn_amnt")]:
+    for section, col in [("社会貢献活動支出額", "SclCntrbtnAmnt"),
+                          ("政治献金・ロビー活動等支出額", "PltclCntrbtnAmnt")]:
         found = False
         for i, line in enumerate(lines):
             if section not in line:
@@ -673,13 +666,12 @@ def parse_env_efforts(lines: list[str]) -> dict:
     # SpplyGrnBuy: 「比率（%）\t値\t値」の直近年度（タブ後最後の数値）
     # 行が右カラムに混在するため text から正規表現で取る
     m = re.search(r"比率（%）\t([\d.]+)\t([\d.]+)", text)
-    result["spply_grn_buy"] = m.group(2) if m else None
+    result["SpplyGrnBuy"] = m.group(2) if m else None
 
-    # CO2Rduce / EnrgyRduce / WasteRduce:
-    # 右カラム混在で値がタブ後にくっつく。テキスト全体から【キー】後のテキストを取る
-    for key, col in [("CO2排出量等削減", "co2_rduce"),
-                     ("リサイクル",       "enrgy_rduce"),
-                     ("廃棄物削減",       "waste_rduce")]:
+    # CO2Rduce / Rcycl / WasteRduce:
+    for key, col in [("CO2排出量等削減", "CO2Rduce"),
+                     ("リサイクル",       "Rcycl"),
+                     ("廃棄物削減",       "WasteRduce")]:
         # タブ混在で右カラムのテキストが混入するため、タブ前までを取得
         # キーが行後半にある場合も正規表現で拾う
         m = re.search(rf"【{re.escape(key)}】([^\t\n【]+)", text)
